@@ -1,6 +1,6 @@
-# OpenClaude CLI — oc-start
+# super-oc-cli — oc-start
 
-Agentic CLI harness for OpenClaude with multi-phase pipelines, provider routing, context epochs, and cost tracking. Extracted from [anomalyco/opencode](https://github.com/anomalyco/opencode) architectural patterns.
+Agentic CLI harness with multi-phase pipelines, provider routing, context epochs, and cost tracking. Extracted from [anomalyco/opencode](https://github.com/anomalyco/opencode) architectural patterns.
 
 ## Quick Start
 
