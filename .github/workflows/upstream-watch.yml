@@ -1,0 +1,64 @@
+name: Upstream Watch
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Weekly Monday 8am UTC
+  workflow_dispatch:
+
+jobs:
+  check-openclaude:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check OpenClaude releases
+        id: oc
+        run: |
+          LATEST=$(curl -sf https://api.github.com/repos/Gitlawb/openclaude/releases/latest | jq -r '.tag_name // "none"')
+          echo "openclaude_version=$LATEST" >> "$GITHUB_OUTPUT"
+
+          # Get recent commits touching CLI interface
+          CHANGES=$(curl -sf "https://api.github.com/repos/Gitlawb/openclaude/commits?since=$(date -d '7 days ago' -u +%Y-%m-%dT%H:%M:%SZ)&per_page=20" \
+            | jq -r '.[].commit.message' | head -30)
+          echo "recent_changes<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Check opencode patterns
+        id: opencode
+        run: |
+          CHANGES=$(curl -sf "https://api.github.com/repos/anomalyco/opencode/commits?since=$(date -d '7 days ago' -u +%Y-%m-%dT%H:%M:%SZ)&per_page=20" \
+            | jq -r '.[].commit.message' | head -30)
+          echo "recent_changes<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create issue if changes detected
+        if: steps.oc.outputs.recent_changes != '' || steps.opencode.outputs.recent_changes != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ocChanges = `${{ steps.oc.outputs.recent_changes }}`.trim();
+            const openCodeChanges = `${{ steps.opencode.outputs.recent_changes }}`.trim();
+
+            if (!ocChanges && !openCodeChanges) return;
+
+            const body = [
+              '## Weekly Upstream Changes',
+              '',
+              '### Gitlawb/openclaude',
+              ocChanges || '_No changes this week_',
+              '',
+              '### anomalyco/opencode',
+              openCodeChanges || '_No changes this week_',
+              '',
+              '**Action needed:** Review for breaking changes to CLI flags, env vars, or APIs that super-oc-cli depends on.',
+              '',
+              `OpenClaude latest release: \`${{ steps.oc.outputs.openclaude_version }}\``
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `upstream-watch: changes detected (${new Date().toISOString().split('T')[0]})`,
+              body: body,
+              labels: ['upstream']
+            });
