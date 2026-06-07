@@ -1,0 +1,37 @@
+{
+  "_comment": "super-oc-cli config — copy to ~/.super-oc/config.json and customize",
+
+  "home_dir": "~/.super-oc",
+  "lib_dir": "~/.super-oc/lib",
+  "work_dir": "~/.super-oc/workspace",
+
+  "model_default": "qwen2.5:7b",
+  "model_aliases": {
+    "fast": "qwen2.5:7b"
+  },
+  "model_scripts": {},
+
+  "ollama_port": 11434,
+  "gateway_port": 8400,
+  "gateway_enabled": true,
+
+  "mcp_enabled": true,
+  "mcp_config": "~/.mcp.json",
+  "mcp_servers": [],
+
+  "extra_dirs": [],
+  "extra_oc_flags": "",
+  "skip_permissions": true,
+  "tmux_session": "oc",
+
+  "max_output_tokens": 16384,
+  "context_window": 262144,
+  "auto_compact_threshold": 60,
+
+  "node_max_old_space": 4096,
+  "node_semi_space": 64,
+  "uv_threadpool_size": 4,
+  "max_tool_concurrency": 4,
+
+  "openai_extra_headers": {}
+}
