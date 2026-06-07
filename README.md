@@ -63,7 +63,7 @@ All config lives in `~/.openclaude/`:
 - bash 4.4+, jq
 - Ollama with local models (RTX 4090 recommended)
 - tmux
-- OpenClaude CLI (`openclaude` in PATH)
+- [OpenClaude CLI](https://github.com/Gitlawb/openclaude) (`openclaude` in PATH)
 
 ## License
 
