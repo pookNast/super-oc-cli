@@ -189,11 +189,11 @@ Default pipeline (configurable via `~/.super-oc/config/pipeline.json`):
 
 ## Built With
 
-- Bash 4.4+ / jq
-- Claude Code (Anthropic) — development tooling
-- Linux (Arch/KDE) — Ryzen 9 5950X, 128GB RAM, RTX 4090
-- Ollama — local LLM inference
-- tmux — session management
+- Bash / jq
+- Claude Code (Anthropic)
+- Ollama
+- tmux
+- Linux
 
 ## License
 
