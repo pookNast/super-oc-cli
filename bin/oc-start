@@ -39,6 +39,7 @@ done
 # ── Model alias resolution via route library ──────────────────────────────────
 if [[ -f "$OC_LIB_DIR/oc-routes.sh" ]]; then
     source "$OC_LIB_DIR/oc-routes.sh"
+    oc_route_init || echo "[!] Route init failed — using legacy aliases"
     MODEL=$(oc_route_resolve_alias "$MODEL")
     # Handle flags passed as first positional arg
     [[ "$MODEL" == --* ]] && MODEL="qwopus3.6-27b-v2"

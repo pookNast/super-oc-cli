@@ -146,6 +146,8 @@ _oct_scan_mcp_json() {
   servers=$(jq -r 'to_entries[] | "\(.key) \(.value.port // empty)"' "$config" 2>/dev/null)
   while IFS=' ' read -r srv prt; do
     [[ -z "$srv" || -z "$prt" ]] && continue
+    # Validate port is numeric
+    [[ ! "$prt" =~ ^[0-9]+$ ]] && { _oct_warn "Invalid port '$prt' for server '$srv' — skipping"; continue; }
     if [[ -z "${_OCT_KNOWN_SERVERS[$srv]+_}" ]] && _oct_server_reachable "$srv" "$prt"; then
       local count
       count=$(oct_register_server "$srv" "$prt")
@@ -368,9 +370,13 @@ oct_call() {
   fi
 
   # Permission check via ocp_check if available
+  # ocp_check expects <agent_id> <action> — derive agent from current session
   if declare -f ocp_check &>/dev/null; then
-    if ! ocp_check "$tool_name" "$args_json"; then
-      _oct_error "oct_call: permission denied for tool $tool_name"
+    local _agent_id="${_OCA_CURRENT_ID:-unknown}"
+    local _server
+    _server=$(_oct_record_get "$tool_name" server)
+    if ! ocp_check "$_agent_id" "tool.${_server}.${tool_name}"; then
+      _oct_error "oct_call: agent '$_agent_id' denied tool $tool_name"
       return 1
     fi
   fi

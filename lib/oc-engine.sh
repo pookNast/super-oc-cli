@@ -14,6 +14,12 @@
 # Logs: /tmp/oc-engine.log
 # State: ~/.openclaude/sessions/<session_id>/state.json
 
+# ── Dependency check ──────────────────────────────────────────────────────────
+if ! command -v jq &>/dev/null; then
+    echo "[oc-engine] FATAL: jq is required but not found in PATH" >&2
+    return 1 2>/dev/null || exit 1
+fi
+
 # ── Constants ──────────────────────────────────────────────────────────────────
 OC_ENGINE_VERSION="1.0.0"
 OC_LOG="/tmp/oc-engine.log"
@@ -212,15 +218,15 @@ _oc_switch_model() {
         model=$(jq -r '.model // ""' "$agent_file" 2>/dev/null)
     fi
 
-    # Source oc-routes if available
+    # Source oc-routes if available and switch model
     local routes_lib
     routes_lib="$(dirname "${BASH_SOURCE[0]}")/oc-routes.sh"
     if [[ -f "$routes_lib" ]]; then
         # shellcheck source=/dev/null
         source "$routes_lib"
-        if declare -f oc_route_model &>/dev/null; then
-            oc_route_model "$agent_name" "$model"
-            _oc_log_debug "Model routed via oc-routes.sh for agent=$agent_name"
+        if declare -f oc_route_switch &>/dev/null && [[ -n "$model" ]]; then
+            oc_route_switch "$model"
+            _oc_log_debug "Model routed via oc-routes.sh for agent=$agent_name model=$model"
             return 0
         fi
     fi

@@ -215,7 +215,8 @@ oc_agent_select() {
 }
 
 # ── 5. oc_agent_check_permission <action> ────────────────────────────────────────
-# Returns 0=allowed, 1=denied. Deny list is checked first.
+# Returns 0=allowed, 1=denied. Delegates to oc-permissions.sh if available,
+# falls back to built-in deny-first matching.
 oc_agent_check_permission() {
     local action="$1"
 
@@ -224,7 +225,13 @@ oc_agent_check_permission() {
         return 1
     fi
 
-    # Check deny list first (deny overrides allow)
+    # Delegate to full permission engine if available (oc-permissions.sh)
+    if declare -f ocp_check &>/dev/null; then
+        ocp_check "$_OCA_CURRENT_ID" "$action"
+        return $?
+    fi
+
+    # Fallback: built-in deny-first matching
     local perm
     for perm in "${_OCA_CURRENT_DENY[@]}"; do
         if _oca_match_pattern "$action" "$perm"; then
@@ -233,7 +240,6 @@ oc_agent_check_permission() {
         fi
     done
 
-    # Check allow list
     for perm in "${_OCA_CURRENT_ALLOW[@]}"; do
         if _oca_match_pattern "$action" "$perm"; then
             _oca_info "Permission ALLOWED: $action matches allow pattern '$perm'"
@@ -241,7 +247,6 @@ oc_agent_check_permission() {
         fi
     done
 
-    # Default deny if nothing matched
     _oca_info "Permission DENIED (no matching allow): $action"
     return 1
 }
