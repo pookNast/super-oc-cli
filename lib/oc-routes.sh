@@ -297,10 +297,13 @@ _oc_ollama_ensure_model() {
     local model="$1"
     local endpoint="${2:-http://127.0.0.1:11434}"
 
-    # Get currently loaded model
-    local running_model
-    running_model=$(curl -sf --max-time 5 "${endpoint}/v1/models" 2>/dev/null \
-        | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['data'][0]['id'])" 2>/dev/null || echo "")
+    # Get currently loaded model (jq preferred, python3 fallback)
+    local running_model=""
+    local models_json
+    models_json=$(curl -sf --max-time 5 "${endpoint}/v1/models" 2>/dev/null)
+    if [[ -n "$models_json" ]]; then
+        running_model=$(echo "$models_json" | jq -r '.data[0].id // empty' 2>/dev/null || echo "")
+    fi
 
     if [[ "$running_model" == "$model" ]]; then
         _oc_info "Ollama model already loaded: $model"
@@ -310,9 +313,15 @@ _oc_ollama_ensure_model() {
     _oc_info "Ollama model mismatch: running='$running_model' want='$model' — attempting pull/load"
 
     # Check if model exists locally
-    local exists
-    exists=$(curl -sf --max-time 5 "${endpoint}/api/tags" 2>/dev/null \
-        | python3 -c "import json,sys;d=json.load(sys.stdin);names=[m['name'] for m in d.get('models',[])];print('yes' if any('${model}' in n for n in names) else 'no')" 2>/dev/null || echo "no")
+    local exists="no"
+    local tags_json
+    tags_json=$(curl -sf --max-time 5 "${endpoint}/api/tags" 2>/dev/null)
+    if [[ -n "$tags_json" ]]; then
+        local match
+        match=$(echo "$tags_json" | jq -r --arg m "$model" \
+            '[.models[]?.name // empty] | map(select(contains($m))) | length' 2>/dev/null || echo "0")
+        [[ "$match" -gt 0 ]] && exists="yes"
+    fi
 
     if [[ "$exists" == "no" ]]; then
         _oc_warn "Model '$model' not found locally — pulling (this may take a while)"

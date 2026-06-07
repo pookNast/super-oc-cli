@@ -281,9 +281,15 @@ ocp_evaluate() {
             ;;
     esac
 
-    # Audit log
+    # Audit log — determine source by checking if action came from dynamic rules
     local source="ruleset"
-    [[ "${_OCP_DYNAMIC_RULES[$agent_id]:-}" == *"$action"* ]] && source="dynamic"
+    if [[ -n "${_OCP_DYNAMIC_RULES[$agent_id]:-}" ]]; then
+        # Check dynamic rules JSON array for exact action match (not substring)
+        if echo "${_OCP_DYNAMIC_RULES[$agent_id]}" \
+            | jq -e --arg a "$action" 'map(select(.action == $a)) | length > 0' &>/dev/null; then
+            source="dynamic"
+        fi
+    fi
     ocp_audit_log "$agent_id" "$action" "$final_effect" "$source" "$final_pattern"
 
     printf '%s\n' "$final_effect"
@@ -345,10 +351,8 @@ ocp_revoke() {
 
     local existing="${_OCP_DYNAMIC_RULES[$agent_id]:-[]}"
     local updated
-    updated=$(jq -n \
-        --argjson rules "$existing" \
-        --arg act "$action" \
-        '[foreach $rules[] as $r (null; null; if $r.action != $act then $r else empty end)]')
+    updated=$(echo "$existing" | jq --arg act "$action" \
+        '[.[] | select(.action != $act)]')
     _OCP_DYNAMIC_RULES["$agent_id"]="$updated"
 
     local dyn_file="$_OCP_SESSIONS_DIR/${_OCP_SESSION_ID}/dynamic_permissions.json"

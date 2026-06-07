@@ -161,8 +161,8 @@ else
     printf 'export OPENAI_BASE_URL=%s\n' "$OPENAI_BASE_URL" >> /tmp/.oc-launch.sh
 fi
 
-printf 'export OPENAI_EXTRA_HEADERS=%s\n' "${OPENAI_EXTRA_HEADERS:-'{\"X-HiveMind-Consumer\":\"openclaude\"}'}" >> /tmp/.oc-launch.sh
-printf 'export OPENAI_MODEL=%s\n' "$MODEL" >> /tmp/.oc-launch.sh
+printf "export OPENAI_EXTRA_HEADERS='%s'\n" "${OPENAI_EXTRA_HEADERS:-'{"X-HiveMind-Consumer":"openclaude"}'}" >> /tmp/.oc-launch.sh
+printf "export OPENAI_MODEL='%s'\n" "$MODEL" >> /tmp/.oc-launch.sh
 
 # If route system switched to Anthropic provider, pass that through
 if [[ "${CLAUDE_CODE_USE_OPENAI:-1}" == "0" ]]; then
@@ -246,7 +246,9 @@ fi
 WATCHDOG
 fi
 
-sed -i "s|OC_FLAGS_PLACEHOLDER|$OC_FLAGS|" /tmp/.oc-launch.sh
+# Replace placeholder with actual flags (escape sed special chars in OC_FLAGS)
+_OC_FLAGS_ESCAPED=$(printf '%s\n' "$OC_FLAGS" | sed 's/[&/\]/\\&/g')
+sed -i "s|OC_FLAGS_PLACEHOLDER|${_OC_FLAGS_ESCAPED}|" /tmp/.oc-launch.sh
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 MODE_LABEL="interactive"
