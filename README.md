@@ -187,6 +187,14 @@ Default pipeline (configurable via `~/.super-oc/config/pipeline.json`):
 | `OPENAI_BASE_URL` | Skip gateway detection, use this URL directly |
 | `ANTHROPIC_API_KEY` | Required for pipeline verify phase (Opus) |
 
+## Built With
+
+- Bash 4.4+ / jq
+- Claude Code (Anthropic) — development tooling
+- Linux (Arch/KDE) — Ryzen 9 5950X, 128GB RAM, RTX 4090
+- Ollama — local LLM inference
+- tmux — session management
+
 ## License
 
 MIT
