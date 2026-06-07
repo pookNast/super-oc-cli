@@ -1,0 +1,44 @@
+{
+  "routes": {
+    "ollama-local": {
+      "provider": "openai-compatible",
+      "endpoint": "http://127.0.0.1:11434/v1",
+      "auth": {"type": "static", "value": "ollama"},
+      "headers": {},
+      "models": ["qwopus3.6-27b-v2", "devstral-small-2:24b", "qwen3-coder:latest", "glm-flash", "gemma4-26b-a4b"]
+    },
+    "hivemind-gateway": {
+      "provider": "openai-compatible",
+      "endpoint": "http://127.0.0.1:8400/v1",
+      "auth": {"type": "static", "value": "ollama"},
+      "headers": {"X-HiveMind-Consumer": "openclaude"},
+      "models": ["*"],
+      "health": "http://127.0.0.1:8400/health"
+    },
+    "anthropic-api": {
+      "provider": "anthropic",
+      "endpoint": "https://api.anthropic.com",
+      "auth": {"type": "env", "var": "ANTHROPIC_API_KEY"},
+      "headers": {},
+      "models": ["claude-sonnet-4-20250514", "claude-opus-4-20250514"]
+    },
+    "openai-api": {
+      "provider": "openai",
+      "endpoint": "https://api.openai.com/v1",
+      "auth": {"type": "env", "var": "OPENAI_API_KEY"},
+      "headers": {},
+      "models": ["gpt-4o", "gpt-4o-mini"]
+    }
+  },
+  "aliases": {
+    "qwopus": "qwopus3.6-27b-v2",
+    "devstral": "devstral-small-2:24b",
+    "fast": "qwen3-coder:latest",
+    "glm": "glm-flash",
+    "gemma4": "gemma4-26b-a4b",
+    "sonnet": "claude-sonnet-4-20250514",
+    "opus": "claude-opus-4-20250514"
+  },
+  "fallback_chain": ["hivemind-gateway", "ollama-local"],
+  "default_route": "hivemind-gateway"
+}

@@ -1,0 +1,254 @@
+#!/usr/bin/env bash
+# Start OpenClaude with local LLM in tmux
+# Root cause fix: cd to clean dir (FileIndex scans cwd; $HOME has 216K files = freeze)
+#
+# Usage: oc-start [model-alias] [--bare] [--no-mcp] [--agent NAME] [--pipeline]
+#
+# Modes:
+#   Interactive (default):  Single openclaude session with watchdog restart
+#   Pipeline (--pipeline):  Multi-phase agentic loop via oc-engine
+#
+# Library suite: ~/openclaude-workspace/lib/oc-{engine,routes,agents,epochs,compaction,permissions,tools,cost}.sh
+
+OC_LIB_DIR="$HOME/openclaude-workspace/lib"
+
+# ── Parse arguments ───────────────────────────────────────────────────────────
+MODEL="${1:-qwopus3.6-27b-v2}"
+SESSION="oc"
+USE_BARE=false
+USE_MCP=true
+USE_PIPELINE=false
+AGENT_NAME=""
+
+for arg in "$@"; do
+    case "$arg" in
+        --bare)     USE_BARE=true ;;
+        --no-mcp)   USE_MCP=false ;;
+        --pipeline) USE_PIPELINE=true ;;
+    esac
+done
+
+# Parse --agent NAME (needs next-arg lookahead)
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --agent) AGENT_NAME="${2:-}"; shift 2 ;;
+        *)       shift ;;
+    esac
+done
+
+# ── Model alias resolution via route library ──────────────────────────────────
+if [[ -f "$OC_LIB_DIR/oc-routes.sh" ]]; then
+    source "$OC_LIB_DIR/oc-routes.sh"
+    MODEL=$(oc_route_resolve_alias "$MODEL")
+    # Handle flags passed as first positional arg
+    [[ "$MODEL" == --* ]] && MODEL="qwopus3.6-27b-v2"
+else
+    # Fallback: hardcoded aliases (legacy compat)
+    case "$MODEL" in
+        devstral)   MODEL="devstral-small-2:24b" ;;
+        fast)       MODEL="qwen3-coder:latest" ;;
+        glm)        MODEL="glm-flash" ;;
+        gemma4)     MODEL="gemma4-26b-a4b" ;;
+        --*)        MODEL="qwopus3.6-27b-v2" ;;
+    esac
+fi
+
+tmux kill-session -t "$SESSION" 2>/dev/null
+
+# ── Model switching via route system ──────────────────────────────────────────
+if declare -f oc_route_with_fallback &>/dev/null; then
+    echo "Resolving route for $MODEL..."
+    oc_route_with_fallback "$MODEL" || {
+        echo "[!] Route resolution failed — falling back to direct Ollama"
+        # Legacy fallback: ensure correct LLM on :11434
+        RUNNING_MODEL=$(curl -sf http://127.0.0.1:11434/v1/models 2>/dev/null \
+            | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['data'][0]['id'])" 2>/dev/null || echo "")
+        if [[ "$RUNNING_MODEL" != "$MODEL" ]]; then
+            echo "Switching model: $RUNNING_MODEL → $MODEL"
+            PID=$(ss -ltnp 2>/dev/null | grep ":11434" | grep -oP 'pid=\K[0-9]+' | head -1)
+            [[ -n "$PID" ]] && kill -9 "$PID" 2>/dev/null && sleep 2
+            if [[ "$MODEL" == "gemma4-26b-a4b" ]]; then
+                bash ~/local-llm/scripts/start-gemma4-26b.sh
+            else
+                bash ~/local-llm/scripts/start-qwopus36-mtp.sh
+            fi
+        fi
+    }
+else
+    # No route library — legacy model switching
+    RUNNING_MODEL=$(curl -sf http://127.0.0.1:11434/v1/models 2>/dev/null \
+        | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['data'][0]['id'])" 2>/dev/null || echo "")
+    if [[ "$RUNNING_MODEL" != "$MODEL" ]]; then
+        echo "Switching model: $RUNNING_MODEL → $MODEL"
+        PID=$(ss -ltnp 2>/dev/null | grep ":11434" | grep -oP 'pid=\K[0-9]+' | head -1)
+        [[ -n "$PID" ]] && kill -9 "$PID" 2>/dev/null && sleep 2
+        if [[ "$MODEL" == "gemma4-26b-a4b" ]]; then
+            echo "Starting Gemma 4 26B-A4B MoE..."
+            bash ~/local-llm/scripts/start-gemma4-26b.sh
+        else
+            echo "Starting Qwopus3.6-27B-v2-MTP..."
+            bash ~/local-llm/scripts/start-qwopus36-mtp.sh
+        fi
+    fi
+fi
+
+# ── MCP servers ───────────────────────────────────────────────────────────────
+if [[ "$USE_MCP" == true ]]; then
+    [[ -f "$HOME/.bw-session" ]] && export BW_SESSION="$(cat "$HOME/.bw-session")"
+    if ! curl -sf http://localhost:3101/health &>/dev/null; then
+        echo "Starting homelab-mcp..."
+        bash /home/pook/bin/homelab-mcp-http.sh start
+    elif [[ -n "${BW_SESSION:-}" ]]; then
+        echo "Restarting homelab-mcp with fresh secrets..."
+        bash /home/pook/bin/homelab-mcp-http.sh stop 2>/dev/null || true
+        sleep 1
+        bash /home/pook/bin/homelab-mcp-http.sh start
+    fi
+fi
+
+if [[ -f "$HOME/.bw-session" ]] && ! ss -tlnp 2>/dev/null | grep -q ':3005'; then
+    echo "Starting warden-mcp..."
+    BW_SESSION=$(cat "$HOME/.bw-session") \
+    BW_HOST="https://vaultwarden.viztekpro.com" \
+    KEYCHAIN_ALLOW_ENV_FALLBACK=true \
+      nohup "$HOME/.npm-global/bin/warden-mcp" </dev/null > /tmp/warden-mcp.log 2>&1 &
+    sleep 1
+    ss -tlnp 2>/dev/null | grep -q ':3005' && echo "[+] warden-mcp on :3005" || echo "[!] warden-mcp failed"
+fi
+
+# ── Build OC flags ────────────────────────────────────────────────────────────
+OC_FLAGS=""
+[[ "$USE_BARE" == true ]] && OC_FLAGS="--bare"
+[[ "$USE_MCP" == true ]] && OC_FLAGS="$OC_FLAGS --mcp-config $HOME/.mcp.json"
+
+# ── Build launch script ──────────────────────────────────────────────────────
+# CRITICAL: Use single-quoted heredoc so BW_SESSION +/= chars don't corrupt the script
+cat > /tmp/.oc-launch.sh << 'EOF'
+# Session isolation: unique goal/session ID per terminal to prevent cross-contamination
+export CLAUDE_SESSION_ID="oc-$(tty 2>/dev/null | tr '/' '-' | sed 's/^-//')-$$"
+export CLAUDE_CODE_USE_OPENAI=1
+export CLAUDE_CODE_PROVIDER_PROFILE_ENV_APPLIED=1
+export OPENAI_API_KEY=ollama
+# Qwen3.6 uses <think> blocks that consume output tokens before tool calls
+# Default 4096 is too low — model burns it all on reasoning. 16384 gives headroom.
+export CLAUDE_CODE_MAX_OUTPUT_TOKENS=16384
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.npm-global/bin:$HOME/bin:$PATH"
+[ -f "$HOME/.bw-session" ] && export BW_SESSION="$(cat "$HOME/.bw-session")"
+
+# Stability tuned for: Ryzen 9 5950X (32T), 125GB RAM, RTX 4090 (24GB VRAM full)
+export NODE_OPTIONS="--max-old-space-size=8192 --max-semi-space-size=128"
+export UV_THREADPOOL_SIZE=16
+export CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY=8
+export CLAUDE_CODE_OPENAI_FALLBACK_CONTEXT_WINDOW=262144
+export CLAUDE_CODE_AUTO_COMPACT_THRESHOLD=60
+
+cd /home/pook/openclaude-workspace 2>/dev/null || { mkdir -p /home/pook/openclaude-workspace && cd /home/pook/openclaude-workspace; }
+EOF
+
+# ── Resolve gateway + export env vars ─────────────────────────────────────────
+# If route system already set env vars, use those; otherwise resolve gateway
+if [[ -z "${OPENAI_BASE_URL:-}" ]]; then
+    if curl -sf --max-time 2 http://127.0.0.1:8400/health &>/dev/null; then
+        GATEWAY_BASE_URL="http://127.0.0.1:8400/v1"
+        echo "[+] HiveMind gateway :8400 healthy — routing via gateway"
+    else
+        GATEWAY_BASE_URL="http://127.0.0.1:11434/v1"
+        echo "[!] HiveMind gateway :8400 unreachable — falling back to :11434"
+    fi
+    printf 'export OPENAI_BASE_URL=%s\n' "$GATEWAY_BASE_URL" >> /tmp/.oc-launch.sh
+else
+    printf 'export OPENAI_BASE_URL=%s\n' "$OPENAI_BASE_URL" >> /tmp/.oc-launch.sh
+fi
+
+printf 'export OPENAI_EXTRA_HEADERS=%s\n' "${OPENAI_EXTRA_HEADERS:-'{\"X-HiveMind-Consumer\":\"openclaude\"}'}" >> /tmp/.oc-launch.sh
+printf 'export OPENAI_MODEL=%s\n' "$MODEL" >> /tmp/.oc-launch.sh
+
+# If route system switched to Anthropic provider, pass that through
+if [[ "${CLAUDE_CODE_USE_OPENAI:-1}" == "0" ]]; then
+    printf 'export CLAUDE_CODE_USE_OPENAI=0\n' >> /tmp/.oc-launch.sh
+    printf 'export ANTHROPIC_API_KEY=%s\n' "${ANTHROPIC_API_KEY:-}" >> /tmp/.oc-launch.sh
+fi
+
+printf 'echo "OpenClaude + TurboQuant (%s)"\n' "$MODEL" >> /tmp/.oc-launch.sh
+
+# ── Append execution mode ────────────────────────────────────────────────────
+if [[ "$USE_PIPELINE" == true ]]; then
+    # Pipeline mode: multi-phase agentic loop via oc-engine
+    cat >> /tmp/.oc-launch.sh << 'PIPELINE'
+
+# ── Pipeline Mode: Agentic Step Loop ──────────────────────────────────────────
+OC_LIB="$HOME/openclaude-workspace/lib"
+source "$OC_LIB/oc-engine.sh"
+source "$OC_LIB/oc-routes.sh"
+source "$OC_LIB/oc-agents.sh"
+source "$OC_LIB/oc-epochs.sh"
+source "$OC_LIB/oc-compaction.sh"
+source "$OC_LIB/oc-permissions.sh"
+source "$OC_LIB/oc-tools.sh"
+source "$OC_LIB/oc-cost.sh"
+
+# Initialize subsystems
+oc_agent_init
+ocp_init
+occ_init "$CLAUDE_SESSION_ID"
+oc_epoch_init "$CLAUDE_SESSION_ID"
+
+PIPELINE
+
+    # Inject agent selection if specified
+    if [[ -n "$AGENT_NAME" ]]; then
+        printf 'oc_agent_select "%s"\n' "$AGENT_NAME" >> /tmp/.oc-launch.sh
+    fi
+
+    cat >> /tmp/.oc-launch.sh << 'ENGINE'
+
+# Run the pipeline
+echo "[oc-engine] Starting agentic pipeline..."
+oc_engine_init "$CLAUDE_SESSION_ID" "$HOME/.openclaude/pipeline.json"
+oc_engine_run
+ENGINE_RC=$?
+
+# Session cost summary on exit
+occ_session_summary
+
+if [[ $ENGINE_RC -eq 0 ]]; then
+    echo "[oc-engine] Pipeline completed successfully."
+else
+    echo "[oc-engine] Pipeline exited with code $ENGINE_RC"
+fi
+ENGINE
+
+else
+    # Interactive mode: simple watchdog loop (original behavior)
+    cat >> /tmp/.oc-launch.sh << 'WATCHDOG'
+
+# ── Interactive Mode: Watchdog Loop ───────────────────────────────────────────
+# Source cost tracking for session summary on exit (optional)
+OC_LIB="$HOME/openclaude-workspace/lib"
+if [[ -f "$OC_LIB/oc-cost.sh" ]]; then
+    source "$OC_LIB/oc-cost.sh"
+    occ_init "$CLAUDE_SESSION_ID"
+fi
+
+while true; do
+    openclaude OC_FLAGS_PLACEHOLDER --dangerously-skip-permissions --add-dir /home/pook/obsidian-vault
+    EC=$?
+    [ $EC -eq 0 ] && break
+    echo "[$(date)] OpenClaude exited with code $EC — restarting in 3s..." | tee -a /tmp/openclaude-crashes.log
+    sleep 3
+done
+
+# Session cost summary on exit (if available)
+if declare -f occ_session_summary &>/dev/null; then
+    occ_session_summary
+fi
+WATCHDOG
+fi
+
+sed -i "s|OC_FLAGS_PLACEHOLDER|$OC_FLAGS|" /tmp/.oc-launch.sh
+
+# ── Launch ────────────────────────────────────────────────────────────────────
+MODE_LABEL="interactive"
+[[ "$USE_PIPELINE" == true ]] && MODE_LABEL="pipeline"
+echo "Launching OpenClaude ($MODEL) in tmux session '$SESSION' [mode: $MODE_LABEL]"
+exec tmux new-session -s "$SESSION" "bash /tmp/.oc-launch.sh"

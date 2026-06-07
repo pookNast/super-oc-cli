@@ -1,0 +1,44 @@
+{
+  "rulesets": {
+    "explorer": {
+      "rules": [
+        {"action": "read/*", "effect": "allow"},
+        {"action": "grep/*", "effect": "allow"},
+        {"action": "glob/*", "effect": "allow"},
+        {"action": "bash.read", "effect": "allow"},
+        {"action": "write/*", "effect": "deny"},
+        {"action": "edit/*", "effect": "deny"},
+        {"action": "bash.write", "effect": "deny"}
+      ]
+    },
+    "planner": {
+      "rules": [
+        {"action": "read/*", "effect": "allow"},
+        {"action": "grep/*", "effect": "allow"},
+        {"action": "glob/*", "effect": "allow"},
+        {"action": "bash.read", "effect": "allow"},
+        {"action": "task/*", "effect": "allow"},
+        {"action": "write/*", "effect": "deny"},
+        {"action": "edit/*", "effect": "deny"}
+      ]
+    },
+    "builder": {
+      "rules": [
+        {"action": "*", "effect": "allow"}
+      ]
+    },
+    "reviewer": {
+      "rules": [
+        {"action": "read/*", "effect": "allow"},
+        {"action": "grep/*", "effect": "allow"},
+        {"action": "glob/*", "effect": "allow"},
+        {"action": "bash/*", "effect": "allow"},
+        {"action": "task/*", "effect": "allow"},
+        {"action": "write/*", "effect": "deny"},
+        {"action": "edit/*", "effect": "deny"}
+      ]
+    }
+  },
+  "default_effect": "deny",
+  "audit_log": true
+}

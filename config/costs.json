@@ -1,0 +1,78 @@
+{
+  "models": {
+    "qwopus3.6-27b-v2": {
+      "provider": "local",
+      "input_cost_per_1k": 0.0,
+      "output_cost_per_1k": 0.0,
+      "cache_read_cost_per_1k": 0.0,
+      "context_window": 262144,
+      "notes": "Local RTX 4090 — free but VRAM-constrained"
+    },
+    "devstral-small-2:24b": {
+      "provider": "local",
+      "input_cost_per_1k": 0.0,
+      "output_cost_per_1k": 0.0,
+      "cache_read_cost_per_1k": 0.0,
+      "context_window": 131072,
+      "notes": "Local RTX 4090"
+    },
+    "qwen3-coder:latest": {
+      "provider": "local",
+      "input_cost_per_1k": 0.0,
+      "output_cost_per_1k": 0.0,
+      "cache_read_cost_per_1k": 0.0,
+      "context_window": 131072,
+      "notes": "Local RTX 4090"
+    },
+    "glm-flash": {
+      "provider": "local",
+      "input_cost_per_1k": 0.0,
+      "output_cost_per_1k": 0.0,
+      "cache_read_cost_per_1k": 0.0,
+      "context_window": 131072,
+      "notes": "Local RTX 4090 — GLM Layer 2"
+    },
+    "gemma4-26b-a4b": {
+      "provider": "local",
+      "input_cost_per_1k": 0.0,
+      "output_cost_per_1k": 0.0,
+      "cache_read_cost_per_1k": 0.0,
+      "context_window": 131072,
+      "notes": "Local RTX 4090 — MoE"
+    },
+    "claude-sonnet-4-20250514": {
+      "provider": "anthropic",
+      "input_cost_per_1k": 0.003,
+      "output_cost_per_1k": 0.015,
+      "cache_read_cost_per_1k": 0.0003,
+      "context_window": 200000,
+      "notes": "Anthropic API — 1x baseline"
+    },
+    "claude-opus-4-20250514": {
+      "provider": "anthropic",
+      "input_cost_per_1k": 0.015,
+      "output_cost_per_1k": 0.075,
+      "cache_read_cost_per_1k": 0.0015,
+      "context_window": 200000,
+      "notes": "Anthropic API — 5x Sonnet"
+    },
+    "gpt-4o": {
+      "provider": "openai",
+      "input_cost_per_1k": 0.0025,
+      "output_cost_per_1k": 0.01,
+      "cache_read_cost_per_1k": 0.00125,
+      "context_window": 128000,
+      "notes": "OpenAI API"
+    },
+    "gpt-4o-mini": {
+      "provider": "openai",
+      "input_cost_per_1k": 0.00015,
+      "output_cost_per_1k": 0.0006,
+      "cache_read_cost_per_1k": 0.000075,
+      "context_window": 128000,
+      "notes": "OpenAI API"
+    }
+  },
+  "vram_capacity_gb": 24,
+  "currency": "USD"
+}

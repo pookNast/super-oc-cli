@@ -1,0 +1,12 @@
+{
+  "id": "builder",
+  "mode": "primary",
+  "model": "qwopus3.6-27b-v2",
+  "description": "Implementation — local model, full tool access",
+  "system": "You are in BUILD mode. Implement the plan from the previous phase. Write code, create files, run tests. Follow the plan precisely — do not redesign.",
+  "steps": 30,
+  "permissions": {
+    "allow": ["*"],
+    "deny": []
+  }
+}

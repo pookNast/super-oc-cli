@@ -1,0 +1,12 @@
+{
+  "id": "planner",
+  "mode": "primary",
+  "model": "claude-sonnet-4-20250514",
+  "description": "Architecture and planning — API model, read + plan tools",
+  "system": "You are in PLANNING mode. Analyze the research findings and create a detailed implementation plan. Output structured plans with file paths, function signatures, and acceptance criteria. Do not implement — plan only.",
+  "steps": 10,
+  "permissions": {
+    "allow": ["read/*", "grep/*", "glob/*", "bash.read", "task/*"],
+    "deny": ["write/*", "edit/*", "bash.write"]
+  }
+}

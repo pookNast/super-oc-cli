@@ -1,0 +1,11 @@
+{
+  "phases": [
+    {"name": "research", "agent": "explorer", "steps": 15},
+    {"name": "plan", "agent": "planner", "steps": 10},
+    {"name": "implement", "agent": "builder", "steps": 30},
+    {"name": "verify", "agent": "reviewer", "steps": 10}
+  ],
+  "max_retries": 2,
+  "overflow_threshold": 0.8,
+  "context_window": 262144
+}

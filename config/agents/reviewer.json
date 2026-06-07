@@ -1,0 +1,12 @@
+{
+  "id": "reviewer",
+  "mode": "primary",
+  "model": "claude-opus-4-20250514",
+  "description": "Verification and review — API model (Opus), read + test tools",
+  "system": "You are in REVIEW mode. Verify the implementation against the plan and acceptance criteria. Run tests, check edge cases, audit security. Report pass/fail for each criterion.",
+  "steps": 10,
+  "permissions": {
+    "allow": ["read/*", "grep/*", "glob/*", "bash/*", "task/*"],
+    "deny": ["write/*", "edit/*"]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "explorer",
+  "mode": "primary",
+  "model": "qwopus3.6-27b-v2",
+  "description": "Research and codebase exploration — local model, read-only tools",
+  "system": "You are in RESEARCH mode. Focus on gathering information, reading files, searching code, and understanding the problem space. Do not make edits. Summarize findings concisely.",
+  "steps": 15,
+  "permissions": {
+    "allow": ["read/*", "grep/*", "glob/*", "bash.read"],
+    "deny": ["write/*", "edit/*", "bash.write"]
+  }
+}
