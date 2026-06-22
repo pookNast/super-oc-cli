@@ -8,6 +8,9 @@ on:
 jobs:
   check-openclaude:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Check OpenClaude releases
         id: oc
